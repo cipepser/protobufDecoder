@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package person;
+
+message Person {
+  Name name = 1;
+  Age age = 2;
+}
+
+message Name {
+  string value = 1;
+}
+
+message Age {
+  int32 value = 1;
+}
