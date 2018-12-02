@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"encoding/hex"
 	"testing"
 )
 
@@ -11,7 +12,11 @@ func TestUnmarshalPerson(t *testing.T) {
 		expect Person
 	}{
 		{
-			b: []byte{10, 7, 10, 5, 65, 108, 105, 99, 101, 18, 2, 8, 20}, // "0a070a05416c69636512020814"
+			//b: []byte{10, 7, 10, 5, 65, 108, 105, 99, 101, 18, 2, 8, 20}, // "0a070a05416c69636512020814"
+			b: func(s string) []byte {
+				b, _ := hex.DecodeString(s)
+				return b
+			}("0a070a05416c69636512020814"),
 			expect: Person{
 				Name: &Name{
 					Value: "Alice",
