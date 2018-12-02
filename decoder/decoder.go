@@ -20,7 +20,7 @@ func (l *Lexer) readCurByte() byte {
 	return b
 }
 
-func (l *Lexer) readByte(n int) []byte {
+func (l *Lexer) readBytes(n int) []byte {
 	bs := l.b[l.position : l.position+n]
 	for i := 0; i < n; i++ {
 		l.next()
@@ -28,10 +28,18 @@ func (l *Lexer) readByte(n int) []byte {
 	return bs
 }
 
+func (l *Lexer) hasNext() bool {
+	return l.readPosition < len(l.b)
+}
+
 func (l *Lexer) next() {
 	l.position++
 	l.readPosition = l.position + 1
 }
+
+//func (l *Lexer) peekByte() byte {
+//	return l.b[l.readPosition]
+//}
 
 type Person struct {
 	Name *Name // tag: 1
@@ -46,9 +54,10 @@ type Age struct {
 	Value int32 // tag: 1
 }
 
-// tagのslice or mapが必要
-// それぞれの型ごとに必要はなず。でもそれぞれのtag番号はgivenとする
-// field名を保持するものが必要。reflectで取ってくる？既知なので与えてしまってもよいはず
+// TODO: tagのslice or mapが必要
+//  それぞれの型ごとに必要はなず。でもそれぞれのtag番号はgivenとする
+//  field名を保持するものが必要。reflectで取ってくる？既知なので与えてしまってもよいはず
+//  公式でもreflect.TypeOfを使っているのでそこは必要になるはず
 
 var (
 	// 各wire typeごとに、あとに続くbyte数を保持
@@ -64,7 +73,7 @@ var (
 
 func (p *Person) Unmarshal(b []byte) error {
 	l := New(b)
-	for l.readPosition < len(l.b) {
+	for l.hasNext() {
 		key := uint64(l.readCurByte())
 		tag := key >> 3
 		wire := int(key) & 7
@@ -75,20 +84,112 @@ func (p *Person) Unmarshal(b []byte) error {
 		switch wire {
 		case 2:
 			length := int(l.readCurByte())
-			v := l.readByte(length)
-			fmt.Printf("value: % x\n", v)
-			// TODO: ここでは再帰的に呼ぶ必要がある
+			v := l.readBytes(length)
+			fmt.Printf("value in person: % x\n", v)
+
+			switch tag {
+			case 1:
+				p.Name.Unmarshal(v[1:])
+			case 2:
+				p.Age.Unmarshal(v[1:])
+			}
+
+		// TODO: case 0は別に分ける必要がある
+		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
 		case 0, 1, 5:
 			length := types[wire]
 
-			v := l.readByte(length)
-			fmt.Printf("value: % x\n", v)
+			v := l.readBytes(length)
+			fmt.Printf("value in person: % x\n", v)
 		default:
 			l.next()
 		}
 	}
 
+	fmt.Println("person: ", p)
+
 	p.Name = &Name{"Alice"}
 	p.Age = &Age{20}
 	return nil
+}
+
+func (n *Name) Unmarshal(b []byte) error {
+	l := New(b)
+	for l.hasNext() {
+		key := uint64(l.readCurByte())
+		tag := key >> 3
+		wire := int(key) & 7
+
+		// TODO: この処理Person/Name/Ageで同じになってしまう？
+		switch wire {
+		case 2:
+			length := int(l.readCurByte())
+			v := l.readBytes(length)
+			fmt.Printf("value in name: % x\n", v)
+
+			switch tag {
+			case 1:
+				n.Value = string(v)
+			}
+
+		// TODO: case 0は別に分ける必要がある
+		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
+		case 0, 1, 5:
+			length := types[wire]
+
+			v := l.readBytes(length)
+			fmt.Printf("value in name: % x\n", v)
+		default:
+			l.next()
+		}
+
+	}
+	return nil
+}
+
+func (a *Age) Unmarshal(b []byte) error {
+	l := New(b)
+	for l.hasNext() {
+		key := uint64(l.readCurByte())
+		tag := key >> 3
+		wire := int(key) & 7
+		//fmt.Printf("tag in age: %x\n", tag)
+		//fmt.Printf("wire in age: %x\n", wire)
+
+		// TODO: この処理Person/Name/Ageで同じになってしまう？
+		switch wire {
+		case 2:
+			length := int(l.readCurByte())
+			v := l.readBytes(length)
+			fmt.Printf("value in age: % x\n", v)
+
+		// TODO: case 0は別に分ける必要がある
+		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
+		case 0, 1, 5:
+			length := types[wire]
+
+			v := l.readBytes(length)
+			fmt.Printf("value in age: % x\n", v)
+
+			switch tag {
+			case 1:
+				_, i := decodeVarint(v)
+				a.Value = int32(i)
+			}
+		default:
+			l.next()
+		}
+
+	}
+	return nil
+}
+
+func decodeVarint(bs []byte) (uint64, int) {
+	// TODO: unimplemented
+	fmt.Println("decodeVarint: ", bs)
+	if len(bs) == 1 {
+		return uint64(bs[0]), int(bs[0])
+	}
+
+	return 0, 0
 }
