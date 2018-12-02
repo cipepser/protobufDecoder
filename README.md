@@ -2,6 +2,9 @@
 
 [Protocol Buffers](https://developers.google.com/protocol-buffers/)のバイナリをデコードしたい。
 
+本内容は、あくまでprotobufの勉強を目的としたもので仕様には完璧に添えていません。
+実運用する際には[公式](https://github.com/golang/protobuf/)を利用してください。
+
 ## バイナリの生成
 
 ```proto
@@ -141,3 +144,4 @@ utf8(この文字範囲ならASCIIと同じだけど)として読むと`41 6c 69
 
 ## References
 * [Protocol Buffers](https://developers.google.com/protocol-buffers/)
+* [Go support for Protocol Buffers - Google's data interchange format](https://github.com/golang/protobuf/)
