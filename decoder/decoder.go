@@ -2,6 +2,18 @@ package decoder
 
 import "fmt"
 
+var (
+	// 各wire typeごとに、あとに続くbyte数を保持
+	types = map[int]int{
+		0: 1, // Varint:	int32, int64, uint32, uint64, sint32, sint64, bool, enum
+		1: 2, // 64-bit:	fixed64, sfixed64, double
+		// unimplemented 2: , // Length-delimited:	string, bytes, embedded messages, packed repeated fields
+		// unimplemented 3: , // Start: group	groups (deprecated)
+		// unimplemented 4: , // End: group	groups (deprecated)
+		5: 1, // 32-bit:	fixed32, sfixed32, float
+	}
+)
+
 type Lexer struct {
 	b            []byte
 	position     int
@@ -41,35 +53,15 @@ func (l *Lexer) next() {
 //	return l.b[l.readPosition]
 //}
 
-type Person struct {
-	Name *Name // tag: 1
-	Age  *Age  // tag: 2
-}
-
-type Name struct {
-	Value string // tag: 1
-}
-
-type Age struct {
-	Value int32 // tag: 1
-}
-
 // TODO: tagのslice or mapが必要
 //  それぞれの型ごとに必要はなず。でもそれぞれのtag番号はgivenとする
 //  field名を保持するものが必要。reflectで取ってくる？既知なので与えてしまってもよいはず
 //  公式でもreflect.TypeOfを使っているのでそこは必要になるはず
 
-var (
-	// 各wire typeごとに、あとに続くbyte数を保持
-	types = map[int]int{
-		0: 1, // Varint:	int32, int64, uint32, uint64, sint32, sint64, bool, enum
-		1: 2, // 64-bit:	fixed64, sfixed64, double
-		// unimplemented 2: , // Length-delimited:	string, bytes, embedded messages, packed repeated fields
-		// unimplemented 3: , // Start: group	groups (deprecated)
-		// unimplemented 4: , // End: group	groups (deprecated)
-		5: 1, // 32-bit:	fixed32, sfixed32, float
-	}
-)
+type Person struct {
+	Name *Name // tag: 1
+	Age  *Age  // tag: 2
+}
 
 func (p *Person) Unmarshal(b []byte) error {
 	l := New(b)
@@ -111,6 +103,10 @@ func (p *Person) Unmarshal(b []byte) error {
 	p.Name = &Name{"Alice"}
 	p.Age = &Age{20}
 	return nil
+}
+
+type Name struct {
+	Value string // tag: 1
 }
 
 func (n *Name) Unmarshal(b []byte) error {
@@ -182,6 +178,10 @@ func (a *Age) Unmarshal(b []byte) error {
 
 	}
 	return nil
+}
+
+type Age struct {
+	Value int32 // tag: 1
 }
 
 func decodeVarint(bs []byte) (uint64, int) {
