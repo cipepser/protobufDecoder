@@ -1,7 +1,5 @@
 package decoder
 
-import "fmt"
-
 var (
 	// 各wire typeごとに、あとに続くbyte数を保持
 	types = map[int]int{
@@ -53,15 +51,19 @@ func (l *Lexer) next() {
 //	return l.b[l.readPosition]
 //}
 
+type Person struct {
+	Name *Name // tag: 1
+	Age  *Age  // tag: 2
+}
+
 // TODO: tagのslice or mapが必要
 //  それぞれの型ごとに必要はなず。でもそれぞれのtag番号はgivenとする
 //  field名を保持するものが必要。reflectで取ってくる？既知なので与えてしまってもよいはず
 //  公式でもreflect.TypeOfを使っているのでそこは必要になるはず
 
-type Person struct {
-	Name *Name // tag: 1
-	Age  *Age  // tag: 2
-}
+//func (p *Person) getTags() {
+//
+//}
 
 func (p *Person) Unmarshal(b []byte) error {
 	l := New(b)
@@ -69,21 +71,23 @@ func (p *Person) Unmarshal(b []byte) error {
 		key := uint64(l.readCurByte())
 		tag := key >> 3
 		wire := int(key) & 7
-		fmt.Println("-------------")
-		fmt.Printf("tag: %x\n", tag)
-		fmt.Printf("wire: %x\n", wire)
+		//fmt.Println("-------------")
+		//fmt.Printf("tag: %x\n", tag)
+		//fmt.Printf("wire: %x\n", wire)
 
 		switch wire {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			fmt.Printf("value in person: % x\n", v)
+			//fmt.Printf("value in person: % x\n", v)
 
 			switch tag {
 			case 1:
-				p.Name.Unmarshal(v[1:])
+				p.Name = &Name{}
+				p.Name.Unmarshal(v)
 			case 2:
-				p.Age.Unmarshal(v[1:])
+				p.Age = &Age{}
+				p.Age.Unmarshal(v)
 			}
 
 		// TODO: case 0は別に分ける必要がある
@@ -92,16 +96,19 @@ func (p *Person) Unmarshal(b []byte) error {
 			length := types[wire]
 
 			v := l.readBytes(length)
-			fmt.Printf("value in person: % x\n", v)
+			//fmt.Printf("value in person: % x\n", v)
+			_ = v // TODO
 		default:
 			l.next()
 		}
 	}
 
-	fmt.Println("person: ", p)
+	//fmt.Println("person: ", p)
+	//fmt.Println("name: ", p.Name.Value)
+	//fmt.Println("age: ", p.Age.Value)
 
-	p.Name = &Name{"Alice"}
-	p.Age = &Age{20}
+	//p.Name = &Name{"Alice"}
+	//p.Age = &Age{20}
 	return nil
 }
 
@@ -121,7 +128,7 @@ func (n *Name) Unmarshal(b []byte) error {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			fmt.Printf("value in name: % x\n", v)
+			//fmt.Printf("value in name: % x\n", v)
 
 			switch tag {
 			case 1:
@@ -134,7 +141,8 @@ func (n *Name) Unmarshal(b []byte) error {
 			length := types[wire]
 
 			v := l.readBytes(length)
-			fmt.Printf("value in name: % x\n", v)
+			//fmt.Printf("value in name: % x\n", v)
+			_ = v // TODO
 		default:
 			l.next()
 		}
@@ -157,7 +165,8 @@ func (a *Age) Unmarshal(b []byte) error {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			fmt.Printf("value in age: % x\n", v)
+			//fmt.Printf("value in age: % x\n", v)
+			_ = v // TODO: やっぱり処理が型によって異なる？想定だけcaesを書いてdefaultでerrorを返す？
 
 		// TODO: case 0は別に分ける必要がある
 		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
@@ -165,7 +174,7 @@ func (a *Age) Unmarshal(b []byte) error {
 			length := types[wire]
 
 			v := l.readBytes(length)
-			fmt.Printf("value in age: % x\n", v)
+			//fmt.Printf("value in age: % x\n", v)
 
 			switch tag {
 			case 1:
@@ -186,7 +195,7 @@ type Age struct {
 
 func decodeVarint(bs []byte) (uint64, int) {
 	// TODO: unimplemented
-	fmt.Println("decodeVarint: ", bs)
+	//fmt.Println("decodeVarint: ", bs)
 	if len(bs) == 1 {
 		return uint64(bs[0]), int(bs[0])
 	}
