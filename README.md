@@ -140,6 +140,83 @@ utf8(この文字範囲ならASCIIと同じだけど)として読むと`41 6c 69
 
 ![protobuf](https://github.com/cipepser/protobuf-sample/blob/master/img/protobuf.png)
 
+## 挙動チェック
+
+`tag`を`0`にしたとき
+
+```sh
+panic: proto: person.Person: illegal tag 0 (wire type 2)
+```
+
+このとき`tag`は`1` or `2`だけど、`3`になるようにバイナリを作ると該当フィールドは`nil`になる。
+
+`table_unmarshal.go`に以下のように書かれている。
+
+> Explicitly disallow tag 0. This will ensure we flag an error
+> when decoding a buffer of all zeros. Without this code, we
+> would decode and skip an all-zero buffer of even length.
+> [0 0] is [tag=0/wiretype=varint varint-encoded-0].
+
+## protoを変えてみる
+
+```proto
+syntax = "proto3";
+
+package person;
+
+message Person {
+    string name = 1;
+    int32 age = 2;
+}
+```
+
+上記`.proto`を用いて、以下をエンコードする。
+
+```go
+p := &pb.Person{
+  Name: "Alice",
+  Age:  20,
+}
+```
+
+結果、`0a 05 41 6c 69 63 65 10 14`
+
+`0a`でタグ`name(1)`,`Length-delimited(type 2)`で`05`byte読み込む。
+`05`バイトが`41 6c 69 63 65`で`Alice`となる。
+続いて`10`がタグ`age(2)`,`Varint(type 0)`となるので`14`を`Varint`として読み込む。
+
+127を超えると`Varint`のバイト数が大きくなるので以下に変えて再度エンコードする。
+
+```go
+p := &pb.Person{
+  Name: "Alice",
+  Age:  131, // 20から131に変更
+}
+```
+
+結果、`0a 05 41 6c 69 63 65 10 83 01`
+
+前半`0a 05 41 6c 69 63 65`は上記と同様。
+
+続いて`10`がタグ`age(2)`,`Varint(type 0)`となるので`83`をVarintとして読み込む。
+
+ただし、`0x83` = `0b1000 0011`となり、先頭1bitが`1`のため、次の1byteも読み込む必要がある。
+(実装するときは、128以上ならもう1byte読み込む処理にする)
+次の1byteを読み込むと`0x01` = `0b0000 0001`となる。
+
+`0x83`と`0x01`を組み合わせてVarintを読み込めばいいが、仕様に以下のように書かれているので、
+リトルエンディアンで読んでいく。
+
+> varints store numbers with the least significant group first
+
+なお、先頭1bitは無視することにも注意する。
+
+Varint = `0x01`(`0b0000 0001`)から先頭1bit落としたもの ++ `0x83`(`0b1000 0011`)から先頭1bit落としたもの
+= `000 0001` ++ `000 0011`
+= `0b1000 0011`
+`0d131`
+
+となりVarintが読み込める。
 
 
 ## References
