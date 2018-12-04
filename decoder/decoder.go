@@ -1,5 +1,7 @@
 package decoder
 
+import "errors"
+
 var (
 	// 各wire typeごとに、あとに続くbyte数を保持
 	types = map[int]int{
@@ -46,10 +48,6 @@ func (l *Lexer) next() {
 	l.position++
 	l.readPosition = l.position + 1
 }
-
-//func (l *Lexer) peekByte() byte {
-//	return l.b[l.readPosition]
-//}
 
 type Person struct {
 	Name *Name // tag: 1
@@ -157,10 +155,14 @@ func (a *Age) Unmarshal(b []byte) error {
 		case 0, 1, 5:
 			length := types[wire]
 			v := l.readBytes(length)
+			_ = v // TODO
 
 			switch tag {
 			case 1:
-				_, i := decodeVarint(v)
+				i, err := l.decodeVarint()
+				if err != nil {
+					return err
+				}
 				a.Value = int32(i)
 			}
 		default:
@@ -175,11 +177,21 @@ type Age struct {
 	Value int32 // tag: 1
 }
 
-func decodeVarint(bs []byte) (uint64, int) {
-	// TODO: unimplemented
-	if len(bs) == 1 {
-		return uint64(bs[0]), int(bs[0])
+func (l *Lexer) decodeVarint() (uint64, error) {
+	// TODO: unimplemented multi-byte varint
+	var x uint64
+
+	if !l.hasNext() {
+		return 0, errors.New("unexpected EOF")
 	}
 
-	return 0, 0
+	b := l.readCurByte()
+	if b >= 128 {
+		// TODO: 再帰でdecodeVarint()を呼ぶ
+		// どうやってくっ付ける？
+	} else {
+
+	}
+
+	return x, nil
 }
