@@ -71,15 +71,11 @@ func (p *Person) Unmarshal(b []byte) error {
 		key := uint64(l.readCurByte())
 		tag := key >> 3
 		wire := int(key) & 7
-		//fmt.Println("-------------")
-		//fmt.Printf("tag: %x\n", tag)
-		//fmt.Printf("wire: %x\n", wire)
 
 		switch wire {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			//fmt.Printf("value in person: % x\n", v)
 
 			switch tag {
 			case 1:
@@ -96,19 +92,12 @@ func (p *Person) Unmarshal(b []byte) error {
 			length := types[wire]
 
 			v := l.readBytes(length)
-			//fmt.Printf("value in person: % x\n", v)
 			_ = v // TODO
 		default:
 			l.next()
 		}
 	}
 
-	//fmt.Println("person: ", p)
-	//fmt.Println("name: ", p.Name.Value)
-	//fmt.Println("age: ", p.Age.Value)
-
-	//p.Name = &Name{"Alice"}
-	//p.Age = &Age{20}
 	return nil
 }
 
@@ -128,7 +117,6 @@ func (n *Name) Unmarshal(b []byte) error {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			//fmt.Printf("value in name: % x\n", v)
 
 			switch tag {
 			case 1:
@@ -141,7 +129,6 @@ func (n *Name) Unmarshal(b []byte) error {
 			length := types[wire]
 
 			v := l.readBytes(length)
-			//fmt.Printf("value in name: % x\n", v)
 			_ = v // TODO
 		default:
 			l.next()
@@ -157,24 +144,19 @@ func (a *Age) Unmarshal(b []byte) error {
 		key := uint64(l.readCurByte())
 		tag := key >> 3
 		wire := int(key) & 7
-		//fmt.Printf("tag in age: %x\n", tag)
-		//fmt.Printf("wire in age: %x\n", wire)
 
 		// TODO: この処理Person/Name/Ageで同じになってしまう？
 		switch wire {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
-			//fmt.Printf("value in age: % x\n", v)
 			_ = v // TODO: やっぱり処理が型によって異なる？想定だけcaesを書いてdefaultでerrorを返す？
 
 		// TODO: case 0は別に分ける必要がある
 		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
 		case 0, 1, 5:
 			length := types[wire]
-
 			v := l.readBytes(length)
-			//fmt.Printf("value in age: % x\n", v)
 
 			switch tag {
 			case 1:
@@ -195,7 +177,6 @@ type Age struct {
 
 func decodeVarint(bs []byte) (uint64, int) {
 	// TODO: unimplemented
-	//fmt.Println("decodeVarint: ", bs)
 	if len(bs) == 1 {
 		return uint64(bs[0]), int(bs[0])
 	}
