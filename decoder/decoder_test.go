@@ -40,6 +40,18 @@ func TestUnmarshalPerson(t *testing.T) {
 				Age:  &Age{Value: 20},
 			},
 		},
+		{
+			b: atob("1203088301"),
+			expect: Person{
+				Age:  &Age{Value: 131},
+			},
+		},
+		{
+			b: atob("120410928002"),
+			expect: Person{
+				Age:  &Age{Value: 32786},
+			},
+		},
 	}
 
 	for i, tt := range tests {
