@@ -1,6 +1,10 @@
 package decoder
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"math/bits"
+)
 
 var (
 	// 各wire typeごとに、あとに続くbyte数を保持
@@ -54,15 +58,6 @@ type Person struct {
 	Age  *Age  // tag: 2
 }
 
-// TODO: tagのslice or mapが必要
-//  それぞれの型ごとに必要はなず。でもそれぞれのtag番号はgivenとする
-//  field名を保持するものが必要。reflectで取ってくる？既知なので与えてしまってもよいはず
-//  公式でもreflect.TypeOfを使っているのでそこは必要になるはず
-
-//func (p *Person) getTags() {
-//
-//}
-
 func (p *Person) Unmarshal(b []byte) error {
 	l := New(b)
 	for l.hasNext() {
@@ -76,6 +71,8 @@ func (p *Person) Unmarshal(b []byte) error {
 			v := l.readBytes(length)
 
 			switch tag {
+			case 0:
+				return errors.New("illegal tag 0")
 			case 1:
 				p.Name = &Name{}
 				p.Name.Unmarshal(v)
@@ -83,16 +80,8 @@ func (p *Person) Unmarshal(b []byte) error {
 				p.Age = &Age{}
 				p.Age.Unmarshal(v)
 			}
-
-		// TODO: case 0は別に分ける必要がある
-		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
-		case 0, 1, 5:
-			length := types[wire]
-
-			v := l.readBytes(length)
-			_ = v // TODO
-		default:
-			l.next()
+		default: // Person型はwire type 2以外は存在しない
+			return fmt.Errorf("unexpected wire type: %d", wire)
 		}
 	}
 
@@ -110,26 +99,19 @@ func (n *Name) Unmarshal(b []byte) error {
 		tag := key >> 3
 		wire := int(key) & 7
 
-		// TODO: この処理Person/Name/Ageで同じになってしまう？
 		switch wire {
 		case 2:
 			length := int(l.readCurByte())
 			v := l.readBytes(length)
 
 			switch tag {
+			case 0:
+				return errors.New("illegal tag 0")
 			case 1:
 				n.Value = string(v)
 			}
-
-		// TODO: case 0は別に分ける必要がある
-		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
-		case 0, 1, 5:
-			length := types[wire]
-
-			v := l.readBytes(length)
-			_ = v // TODO
-		default:
-			l.next()
+		default: // Name型はwire type 2以外は存在しない
+			return fmt.Errorf("unexpected wire type: %d", wire)
 		}
 
 	}
@@ -143,30 +125,20 @@ func (a *Age) Unmarshal(b []byte) error {
 		tag := key >> 3
 		wire := int(key) & 7
 
-		// TODO: この処理Person/Name/Ageで同じになってしまう？
 		switch wire {
-		case 2:
-			length := int(l.readCurByte())
-			v := l.readBytes(length)
-			_ = v // TODO: やっぱり処理が型によって異なる？想定だけcaesを書いてdefaultでerrorを返す？
-
-		// TODO: case 0は別に分ける必要がある
-		//  先頭1bitを切り落とさないといけない(7bitで以内なら1byteで済むので)
-		case 0, 1, 5:
-			length := types[wire]
-			v := l.readBytes(length)
-			_ = v // TODO
-
+		case 0:
 			switch tag {
+			case 0:
+				return errors.New("illegal tag 0")
 			case 1:
-				i, err := l.decodeVarint()
+				i, err := l.decodeVarint(0)
 				if err != nil {
 					return err
 				}
 				a.Value = int32(i)
 			}
-		default:
-			l.next()
+		default: // Age型はwire type 1以外は存在しない
+			return fmt.Errorf("unexpected wire type: %d", wire)
 		}
 
 	}
@@ -177,20 +149,19 @@ type Age struct {
 	Value int32 // tag: 1
 }
 
-func (l *Lexer) decodeVarint() (uint64, error) {
-	// TODO: unimplemented multi-byte varint
-	var x uint64
-
+// TODO: unimplemented multi-byte varint
+func (l *Lexer) decodeVarint(x uint64) (uint64, error) {
 	if !l.hasNext() {
 		return 0, errors.New("unexpected EOF")
 	}
 
 	b := l.readCurByte()
-	if b >= 128 {
-		// TODO: 再帰でdecodeVarint()を呼ぶ
-		// どうやってくっ付ける？
-	} else {
-
+	if bits.LeadingZeros8(b) == 0 { // 最上位bitが1のとき
+		x = x<<7 + uint64(b*0x7f)
+		return l.decodeVarint(x)
+	} else { // 最上位bitが0のとき = 最後の1byte
+		x += uint64(b << 7)
+		return x, nil
 	}
 
 	return x, nil
