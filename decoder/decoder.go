@@ -120,6 +120,7 @@ func (n *Name) Unmarshal(b []byte) error {
 
 func (a *Age) Unmarshal(b []byte) error {
 	l := New(b)
+
 	for l.hasNext() {
 		key := uint64(l.readCurByte())
 		tag := key >> 3
@@ -131,7 +132,7 @@ func (a *Age) Unmarshal(b []byte) error {
 			case 0:
 				return errors.New("illegal tag 0")
 			case 1:
-				i, err := l.decodeVarint(0)
+				i, err := l.decodeVarint()
 				if err != nil {
 					return err
 				}
@@ -149,19 +150,22 @@ type Age struct {
 	Value int32 // tag: 1
 }
 
-// TODO: unimplemented multi-byte varint
-func (l *Lexer) decodeVarint(x uint64) (uint64, error) {
-	if !l.hasNext() {
+func (l *Lexer) decodeVarint() (uint64, error) {
+	if len(l.b) == l.position {
 		return 0, errors.New("unexpected EOF")
 	}
 
+	bs := []byte{}
 	b := l.readCurByte()
-	if bits.LeadingZeros8(b) == 0 { // 最上位bitが1のとき
-		x = x<<7 + uint64(b*0x7f)
-		return l.decodeVarint(x)
-	} else { // 最上位bitが0のとき = 最後の1byte
-		x += uint64(b << 7)
-		return x, nil
+	for bits.LeadingZeros8(b) == 0 { // 最上位bitが1のとき
+		bs = append(bs, b&0x7f)
+		b = l.readCurByte()
+	}
+
+	// 最上位bitが0のとき = 最後の1byte
+	x := uint64(b)
+	for i := 0; i < len(bs); i++ {
+		x = x<<7 + uint64(bs[len(bs)-1-i])
 	}
 
 	return x, nil

@@ -37,19 +37,19 @@ func TestUnmarshalPerson(t *testing.T) {
 		{
 			b: atob("12020814"),
 			expect: Person{
-				Age:  &Age{Value: 20},
+				Age: &Age{Value: 20},
 			},
 		},
 		{
 			b: atob("1203088301"),
 			expect: Person{
-				Age:  &Age{Value: 131},
+				Age: &Age{Value: 131},
 			},
 		},
 		{
-			b: atob("120410928002"),
+			b: atob("120408928002"),
 			expect: Person{
-				Age:  &Age{Value: 32786},
+				Age: &Age{Value: 32786},
 			},
 		},
 	}

@@ -219,6 +219,25 @@ Varint = `0x01`(`0b0000 0001`)から先頭1bit落としたもの ++ `0x83`(`0b10
 となりVarintが読み込める。
 
 
+```go
+var x uint64
+if b[0] < 128 {
+  x = uint64(b[0])
+  b = b[1:]
+} else if len(b) >= 2 && b[1] < 128 {
+  x = uint64(b[0]&0x7f) + uint64(b[1])<<7
+  b = b[2:]
+} else {
+  var n int
+  x, n = decodeVarint(b)
+  if n == 0 {
+    return io.ErrUnexpectedEOF
+  }
+  b = b[n:]
+}
+```
+
+
 ## References
 * [Protocol Buffers](https://developers.google.com/protocol-buffers/)
 * [Go support for Protocol Buffers - Google's data interchange format](https://github.com/golang/protobuf/)
