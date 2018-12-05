@@ -75,10 +75,14 @@ func (p *Person) Unmarshal(b []byte) error {
 				return errors.New("illegal tag 0")
 			case 1:
 				p.Name = &Name{}
-				p.Name.Unmarshal(v)
+				if err := p.Name.Unmarshal(v); err != nil {
+					return err
+				}
 			case 2:
 				p.Age = &Age{}
-				p.Age.Unmarshal(v)
+				if err := p.Age.Unmarshal(v); err != nil {
+					return err
+				}
 			}
 		default: // Person型はwire type 2以外は存在しない
 			return fmt.Errorf("unexpected wire type: %d", wire)
@@ -155,7 +159,7 @@ func (l *Lexer) decodeVarint() (uint64, error) {
 		return 0, errors.New("unexpected EOF")
 	}
 
-	bs := []byte{}
+	var bs []byte
 	b := l.readCurByte()
 	for bits.LeadingZeros8(b) == 0 { // 最上位bitが1のとき
 		bs = append(bs, b&0x7f)
